@@ -89,14 +89,7 @@ struct  in_addr sin_addr;
 char    sin_zero[8];
 }; */
 
-void printMenu()
-{
-	sprintf(szbuffer, "Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP\r\n");
-	ibytessent = 0;
-	ibufferlen = strlen(szbuffer);
-	ibytessent = send(s, szbuffer, ibufferlen, 0);
-}
-
+// Send Message
 void sendMessage(char msg[])
 {
 	sprintf(szbuffer, msg);
@@ -106,6 +99,50 @@ void sendMessage(char msg[])
 
 	if ((ibytessent = send(s1, szbuffer, ibufferlen, 0)) == SOCKET_ERROR)
 		throw "error in send in server program\n";
+}
+
+// Print Menu
+void printMenu()
+{
+	sprintf(szbuffer, "Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP\r\n");
+	ibytessent = 0;
+	ibufferlen = strlen(szbuffer);
+	ibytessent = send(s, szbuffer, ibufferlen, 0);
+	sendMessage(szbuffer);
+}
+
+// Receive Message
+void receiveMessage()
+{
+	if ((ibytesrecv = recv(s1, szbuffer, 128, 0)) == SOCKET_ERROR)
+		throw "Receive error in server program\n";
+
+	// Convert selection to integer
+	sscanf(szbuffer, "%d", &choice);
+}
+
+// Menu Choices Select
+void menuSelect()
+{
+	switch (choice)
+	{
+	case 1:
+		cout << "one" << endl;
+		sendMessage("Succes\r\n");
+		break;
+	case 2:
+		cout << "two" << endl;
+		sendMessage("Succes\r\n");
+		break;
+	case 3:
+		cout << "three" << endl;
+		sendMessage("Succes\r\n");
+		break;
+	case 4:
+		sendMessage("Disconnect");
+		cout << "Exiting Client" << endl;
+		break;
+	}
 }
 
 int main(void){
@@ -189,12 +226,9 @@ int main(void){
 
 			//Send the menu to the client
 			printMenu();
-			if ((ibytessent = send(s1, szbuffer, ibufferlen, 0)) == SOCKET_ERROR)
-				throw "error in send in server program\n";
-			else cout << "Echo message:" << szbuffer << endl;
 			
-			if ((ibytesrecv = recv(s1, szbuffer, 128, 0)) == SOCKET_ERROR)
-				throw "Receive error in server program\n";
+			//Receive response
+			receiveMessage();
 
 			// reset choice
 			choice = 0;
@@ -204,34 +238,11 @@ int main(void){
 				// reset buffer
 				memset(szbuffer, 0, sizeof szbuffer);
 				//Fill in szbuffer from accepted request.
-				if ((ibytesrecv = recv(s1, szbuffer, 128, 0)) == SOCKET_ERROR)
-					throw "Receive error in server program\n";
-
-				sscanf(szbuffer, "%d", &choice);
-
+				receiveMessage();
 				//Print reciept of successful message. 
 				cout << "This is message from client: " << szbuffer << endl;
-
-				switch (choice)
-				{
-					case 1:
-						cout << "one" << endl;
-						sendMessage("Succes\r\n");
-						break;
-					case 2:
-						cout << "two" << endl;
-						sendMessage("Succes\r\n");
-						break;
-					case 3:
-						cout << "three" << endl;
-						sendMessage("Succes\r\n");
-						break;
-					case 4:
-						sendMessage("Disconnect");
-						cout << "Exiting Client" << endl;
-						break;
-				}
-
+				//Select From Menu
+				menuSelect();
 			}
 
 		}//wait loop

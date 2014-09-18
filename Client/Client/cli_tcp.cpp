@@ -98,6 +98,20 @@ int strcmp(char *s1, char *s2)
 	return s1[i] - s2[i];
 }
 
+// Send Command
+void sendCommand()
+{
+	char c[20];
+	sprintf(c, "%d\r\n", choice);
+
+	sprintf(szbuffer, c);
+	ibytessent = 0;
+	ibufferlen = strlen(szbuffer);
+	ibytessent = send(s, szbuffer, ibufferlen, 0);
+	if (ibytessent == SOCKET_ERROR)
+		throw "Send failed\n";
+}
+
 int main(void){
 
 	WSADATA wsadata;
@@ -191,16 +205,7 @@ int main(void){
 
 				memset(szbuffer, 0, sizeof szbuffer);
 				cin >> choice;
-
-				char c[20];
-				sprintf(c, "%d\r\n", choice);
-
-				sprintf(szbuffer, c);
-				ibytessent = 0;
-				ibufferlen = strlen(szbuffer);
-				ibytessent = send(s, szbuffer, ibufferlen, 0);
-				if (ibytessent == SOCKET_ERROR)
-					throw "Send failed\n";
+				sendCommand();
 
 			}
 		} // try loop
