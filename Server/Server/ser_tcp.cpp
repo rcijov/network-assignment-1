@@ -104,11 +104,7 @@ void sendMessage(char msg[])
 // Print Menu
 void printMenu()
 {
-	sprintf(szbuffer, "Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP\r\n");
-	ibytessent = 0;
-	ibufferlen = strlen(szbuffer);
-	ibytessent = send(s, szbuffer, ibufferlen, 0);
-	sendMessage(szbuffer);
+	sendMessage("Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP\r\n");
 }
 
 // Receive Message

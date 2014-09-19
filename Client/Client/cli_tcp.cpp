@@ -112,6 +112,53 @@ void sendCommand()
 		throw "Send failed\n";
 }
 
+void setHost()
+{
+	//Ask for name of remote server
+	cout << "Please enter your remote server name: " << flush;
+	cin >> remotehost;
+	cout << "Remote host name is: \"" << remotehost << "\"" << endl;
+
+	if ((rp = gethostbyname(remotehost)) == NULL)
+		throw "remote gethostbyname failed\n";
+}
+
+void setSocket()
+{
+	//Create the socket
+	if ((s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+		throw "Socket failed\n";
+	/* For UDP protocol replace SOCK_STREAM with SOCK_DGRAM */
+}
+
+void setConnection()
+{
+	//Specify server address for client to connect to server.
+	memset(&sa_in, 0, sizeof(sa_in));
+	memcpy(&sa_in.sin_addr, rp->h_addr, rp->h_length);
+	sa_in.sin_family = rp->h_addrtype;
+	sa_in.sin_port = htons(port);
+
+	//Display the host machine internet address
+	cout << "Connecting to remote host:";
+	cout << inet_ntoa(sa_in.sin_addr) << endl;
+
+	//Connect Client to the server
+	if (connect(s, (LPSOCKADDR)&sa_in, sizeof(sa_in)) == SOCKET_ERROR)
+		throw "connect failed\n";
+}
+
+void setHandShake()
+{
+	//append client message to szbuffer + send.
+	sprintf(szbuffer, "Connect\r\n");
+	ibytessent = 0;
+	ibufferlen = strlen(szbuffer);
+	ibytessent = send(s, szbuffer, ibufferlen, 0);
+	if (ibytessent == SOCKET_ERROR)
+		throw "Send failed\n";
+}
+
 int main(void){
 
 	WSADATA wsadata;
@@ -146,40 +193,10 @@ int main(void){
 
 		while (1)
 		{
-			//Ask for name of remote server
-			cout << "Please enter your remote server name: " << flush;
-			cin >> remotehost;
-			cout << "Remote host name is: \"" << remotehost << "\"" << endl;
-
-			if ((rp = gethostbyname(remotehost)) == NULL)
-				throw "remote gethostbyname failed\n";
-
-			//Create the socket
-			if ((s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-				throw "Socket failed\n";
-			/* For UDP protocol replace SOCK_STREAM with SOCK_DGRAM */
-
-			//Specify server address for client to connect to server.
-			memset(&sa_in, 0, sizeof(sa_in));
-			memcpy(&sa_in.sin_addr, rp->h_addr, rp->h_length);
-			sa_in.sin_family = rp->h_addrtype;
-			sa_in.sin_port = htons(port);
-
-			//Display the host machine internet address
-			cout << "Connecting to remote host:";
-			cout << inet_ntoa(sa_in.sin_addr) << endl;
-
-			//Connect Client to the server
-			if (connect(s, (LPSOCKADDR)&sa_in, sizeof(sa_in)) == SOCKET_ERROR)
-				throw "connect failed\n";
-
-			//append client message to szbuffer + send.
-			sprintf(szbuffer, "Connect\r\n");
-			ibytessent = 0;
-			ibufferlen = strlen(szbuffer);
-			ibytessent = send(s, szbuffer, ibufferlen, 0);
-			if (ibytessent == SOCKET_ERROR)
-				throw "Send failed\n";
+			setHost();
+			setSocket();
+			setConnection();
+			setHandShake();
 
 			while (1)
 			{
