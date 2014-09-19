@@ -14,8 +14,8 @@
 #include <winsock.h>
 #include <iostream>
 #include <windows.h>
-
-
+#include "Headers\dirent.h"
+#include <sys/types.h>
 
 using namespace std;
 
@@ -117,6 +117,25 @@ void receiveMessage()
 	sscanf(szbuffer, "%d", &choice);
 }
 
+// List of Files
+void getList()
+{
+	DIR *mydir = opendir("./Files/");
+
+	struct dirent *entry = NULL;
+	char files[128] = "Here is the List of Files : \r\n";
+
+	while ((entry = readdir(mydir)))
+	{
+		strcat(entry->d_name, "\r\n");
+		strcat(files, entry->d_name);
+	}
+
+	sendMessage(files);
+
+	closedir(mydir);
+}
+
 // Menu Choices Select
 void menuSelect()
 {
@@ -124,15 +143,15 @@ void menuSelect()
 	{
 	case 1:
 		cout << "one" << endl;
-		sendMessage("Succes\r\n");
+		sendMessage("Get File was Done Successfully.\r\n");
 		break;
 	case 2:
 		cout << "two" << endl;
-		sendMessage("Succes\r\n");
+		sendMessage("Put File was Done Successfully.\r\n");
 		break;
 	case 3:
 		cout << "three" << endl;
-		sendMessage("Succes\r\n");
+		getList();
 		break;
 	case 4:
 		sendMessage("Disconnect");
