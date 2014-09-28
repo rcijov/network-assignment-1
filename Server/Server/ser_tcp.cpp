@@ -66,6 +66,12 @@ DWORD dwtest;
 
 //menu choice
 int choice;
+#define BUFFER_SIZE 128
+
+#include <fstream>
+
+//filename
+char filename[30];
 
 //reference for used structures
 
@@ -95,8 +101,6 @@ void sendMessage(char msg[])
 	sprintf(szbuffer, msg);
 	ibytessent = 0;
 	ibufferlen = strlen(szbuffer);
-	ibytessent = send(s, szbuffer, ibufferlen, 0);
-
 	if ((ibytessent = send(s1, szbuffer, ibufferlen, 0)) == SOCKET_ERROR)
 		throw "error in send in server program\n";
 }
@@ -110,11 +114,11 @@ void printMenu()
 // Receive Message
 void receiveMessage()
 {
+	// reset buffer
+	memset(szbuffer, 0, sizeof szbuffer);
+
 	if ((ibytesrecv = recv(s1, szbuffer, 128, 0)) == SOCKET_ERROR)
 		throw "Receive error in server program\n";
-
-	// Convert selection to integer
-	sscanf(szbuffer, "%d", &choice);
 }
 
 // List of Files
@@ -136,14 +140,68 @@ void getList()
 	closedir(mydir);
 }
 
+void getFile()
+{
+	sendMessage("[GET] Filename.ext: ");
+	receiveMessage();
+
+	sprintf(filename, szbuffer);
+	char filepath[30] = "Files/";
+	strcat(filepath, filename);
+
+	ifstream filedata;
+	filebuf *pbuf;
+	int filesize;
+
+	try {
+
+		// Open the file
+		filedata.open(filepath);
+
+		if (filedata.is_open()){
+
+			// Get pointer to file buffer and determine file size
+			pbuf = filedata.rdbuf();
+			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
+			pbuf->pubseekpos(0, ios::in);
+
+			cout << "File size: " << filesize << endl;
+
+			int count = 0;
+			// Loop through the file and stream in chunks based on the buffer size
+			while (!filedata.eof()){
+				memset(szbuffer, 0, sizeof szbuffer);
+				filedata.read(szbuffer, BUFFER_SIZE - 1);
+				ibufferlen = strlen(szbuffer);
+				count += ibufferlen;
+				cout << "Sent " << count << " bytes" << endl;
+				sendMessage(szbuffer);
+			}
+			filedata.close();
+		}
+		else{
+			cout << "File does not exist, sending decline" << endl;
+		}
+		// Print out any errors
+	}
+	catch (const char* str){
+		cerr << str << WSAGetLastError() << endl;
+	}
+	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+
+}
+
 // Menu Choices Select
 void menuSelect()
 {
+	// Convert selection to integer
+	sscanf(szbuffer, "%d", &choice);
+
 	switch (choice)
 	{
 	case 1:
 		cout << "one" << endl;
-		sendMessage("Get File was Done Successfully.\r\n");
+		getFile();
 		break;
 	case 2:
 		cout << "two" << endl;
@@ -250,9 +308,6 @@ int main(void){
 
 			while (choice != 4)
 			{
-				// reset buffer
-				memset(szbuffer, 0, sizeof szbuffer);
-				//Fill in szbuffer from accepted request.
 				receiveMessage();
 				//Print reciept of successful message. 
 				cout << "This is message from client: " << szbuffer << endl;

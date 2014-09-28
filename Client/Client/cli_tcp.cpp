@@ -18,7 +18,6 @@ char* getmessage(char *);
 #include <winsock.h>
 #include <stdio.h>
 #include <iostream>
-
 #include <string.h>
 
 #include <windows.h>
@@ -63,8 +62,9 @@ remotehost[11];
 HANDLE test;
 DWORD dwtest;
 
+//choice
 int choice;
-
+char ch[128];
 
 //reference for used structures
 
@@ -101,10 +101,7 @@ int strcmp(char *s1, char *s2)
 // Send Command
 void sendCommand()
 {
-	char c[20];
-	sprintf(c, "%d\r\n", choice);
-
-	sprintf(szbuffer, c);
+	sprintf(szbuffer, ch);
 	ibytessent = 0;
 	ibufferlen = strlen(szbuffer);
 	ibytessent = send(s, szbuffer, ibufferlen, 0);
@@ -197,6 +194,7 @@ int main(void){
 			setSocket();
 			setConnection();
 			setHandShake();
+			choice = 0;
 
 			while (1)
 			{
@@ -207,6 +205,8 @@ int main(void){
 
 				//wait for reception of server response.
 				ibytesrecv = 0;
+				memset(szbuffer, 0, sizeof szbuffer);
+
 				if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
 					throw "Receive failed\n";
 				else
@@ -220,8 +220,8 @@ int main(void){
 					break;
 				}
 
-				memset(szbuffer, 0, sizeof szbuffer);
-				cin >> choice;
+				//cout << "Your Command: ";
+				cin >> ch;
 				sendCommand();
 
 			}
