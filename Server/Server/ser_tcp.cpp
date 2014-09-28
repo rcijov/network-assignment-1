@@ -73,6 +73,14 @@ int choice;
 //filename
 char filename[30];
 
+//FTP Messages
+#define CON "CON"
+#define GET "GET"
+#define PUT "PUT"
+#define DISC "DISC"
+#define OK "OK"
+#define LIST "LIST"
+
 //reference for used structures
 
 /*  * Host structure
@@ -142,6 +150,8 @@ void getList()
 
 void getFile()
 {
+	sendMessage("GET");
+	receiveMessage();
 	sendMessage("[GET] Filename.ext: ");
 	receiveMessage();
 
@@ -188,7 +198,7 @@ void getFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-
+	sendMessage(OK);
 }
 
 // Menu Choices Select
@@ -208,11 +218,11 @@ void menuSelect()
 		sendMessage("Put File was Done Successfully.\r\n");
 		break;
 	case 3:
-		cout << "three" << endl;
+		sendMessage("LIST");
 		getList();
 		break;
 	case 4:
-		sendMessage("Disconnect");
+		sendMessage("DISC");
 		cout << "Exiting Client" << endl;
 		break;
 	}
@@ -298,7 +308,9 @@ int main(void){
 				<< hex << htons(ca.ca_in.sin_port) << endl;
 
 			//Send the menu to the client
+			sendMessage(CON);
 			printMenu();
+			sendMessage(OK);
 			
 			//Receive response
 			receiveMessage();

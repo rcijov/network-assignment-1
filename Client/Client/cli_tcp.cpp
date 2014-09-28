@@ -3,18 +3,14 @@
 // J.W. Atwood
 // 1999 June 30
 
-
-
 char* getmessage(char *);
-
-
 
 /* send and receive codes between client and server */
 /* This is your basic WINSOCK shell */
 #pragma comment( linker, "/defaultlib:ws2_32.lib" )
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
+#include <stdlib.h>
 #include <winsock.h>
 #include <stdio.h>
 #include <iostream>
@@ -26,9 +22,7 @@ using namespace std;
 
 //user defined port number
 #define REQUEST_PORT 0x7070;
-
 int port = REQUEST_PORT;
-
 
 
 //socket data types
@@ -36,19 +30,12 @@ SOCKET s;
 SOCKADDR_IN sa;         // filled by bind
 SOCKADDR_IN sa_in;      // fill with server info, IP, port
 
-
-
 //buffer data types
 char szbuffer[128];
-
 char *buffer;
-
 int ibufferlen = 0;
-
 int ibytessent;
 int ibytesrecv = 0;
-
-
 
 //host data types
 HOSTENT *hp;
@@ -65,6 +52,15 @@ DWORD dwtest;
 //choice
 int choice;
 char ch[128];
+
+//FTP Messages
+#define CON "CON"
+#define FILENAME "FILENAME"
+#define GET "GET"
+#define PUT "PUT"
+#define DISC "DISC"
+#define LIST "LIST"
+#define OK "OK"
 
 //reference for used structures
 
@@ -145,6 +141,34 @@ void setConnection()
 		throw "connect failed\n";
 }
 
+void receiveMessage()
+{
+	// reset buffer
+	memset(szbuffer, 0, sizeof szbuffer);
+
+	if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
+		throw "Receive failed\n";
+}
+
+void getFile()
+{
+	// send request for the file
+	sprintf(szbuffer, FILENAME);
+	sendCommand();
+
+	// receive the file that server request
+	receiveMessage();
+	cout << szbuffer;
+
+	// input the text file
+	cin >> ch;
+	sendCommand();
+
+	// receive the message
+	receiveMessage();
+	cout << szbuffer << endl;
+}
+
 void setHandShake()
 {
 	//append client message to szbuffer + send.
@@ -207,22 +231,33 @@ int main(void){
 				ibytesrecv = 0;
 				memset(szbuffer, 0, sizeof szbuffer);
 
-				if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
-					throw "Receive failed\n";
-				else
-					cout << szbuffer;
+				receiveMessage();
 
-				char disc[11] = "Disconnect";
-
-				if (strcmp(szbuffer, disc) == 1)
-				{
+				if (!strcmp((char const*)szbuffer, DISC)){
 					cout << endl;
 					break;
 				}
-
-				//cout << "Your Command: ";
-				cin >> ch;
-				sendCommand();
+				else if (!strcmp((char const*)szbuffer, GET)){
+					getFile();
+				}
+				else if (!strcmp((char const*)szbuffer, CON)){
+					if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
+						throw "Receive failed\n";
+					else
+						cout << szbuffer;
+				}
+				else if (!strcmp((char const*)szbuffer, LIST)){
+					sprintf(szbuffer, LIST);
+					sendCommand();
+					memset(szbuffer, 0, sizeof szbuffer);
+					receiveMessage();
+					cout << szbuffer;
+				}
+				else{
+					cout << "Your Command: ";
+					cin >> ch;
+					sendCommand();
+				}
 
 			}
 		} // try loop
