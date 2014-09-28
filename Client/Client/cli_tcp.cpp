@@ -15,6 +15,7 @@ char* getmessage(char *);
 #include <stdio.h>
 #include <iostream>
 #include <string.h>
+#include <fstream>
 
 #include <windows.h>
 
@@ -95,7 +96,7 @@ int strcmp(char *s1, char *s2)
 }
 
 // Send Command
-void sendCommand()
+void sendMessage(char msg[])
 {
 	sprintf(szbuffer, ch);
 	ibytessent = 0;
@@ -150,23 +151,36 @@ void receiveMessage()
 		throw "Receive failed\n";
 }
 
+void createFile(char file[],char msg[])
+{
+	ofstream myfile;
+	char path[40] = "../Files/";
+	strcat(path, file);
+	myfile.open(path);
+	myfile << msg;
+	myfile.close();
+}
+
 void getFile()
 {
 	// send request for the file
-	sprintf(szbuffer, FILENAME);
-	sendCommand();
+	sendMessage(FILENAME);
 
 	// receive the file that server request
 	receiveMessage();
 	cout << szbuffer;
 
 	// input the text file
+	memset(ch, 0, sizeof ch);
 	cin >> ch;
-	sendCommand();
+	sendMessage(ch);
 
 	// receive the message
 	receiveMessage();
 	cout << szbuffer << endl;
+
+	// create file
+	createFile(ch, szbuffer);
 }
 
 void setHandShake()
@@ -247,8 +261,7 @@ int main(void){
 						cout << szbuffer;
 				}
 				else if (!strcmp((char const*)szbuffer, LIST)){
-					sprintf(szbuffer, LIST);
-					sendCommand();
+					sendMessage(LIST);
 					memset(szbuffer, 0, sizeof szbuffer);
 					receiveMessage();
 					cout << szbuffer;
@@ -256,7 +269,7 @@ int main(void){
 				else{
 					cout << "Your Command: ";
 					cin >> ch;
-					sendCommand();
+					sendMessage(ch);
 				}
 
 			}
