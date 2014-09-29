@@ -16,6 +16,7 @@ char* getmessage(char *);
 #include <iostream>
 #include <string.h>
 #include <fstream>
+#include <string>
 
 #include <windows.h>
 
@@ -32,7 +33,8 @@ SOCKADDR_IN sa;         // filled by bind
 SOCKADDR_IN sa_in;      // fill with server info, IP, port
 
 //buffer data types
-char szbuffer[128];
+#define BUFFER_SIZE 128
+char szbuffer[BUFFER_SIZE];
 char *buffer;
 int ibufferlen = 0;
 int ibytessent;
@@ -98,7 +100,8 @@ int strcmp(char *s1, char *s2)
 // Send Command
 void sendMessage(char msg[])
 {
-	sprintf(szbuffer, ch);
+	memset(szbuffer, 0, sizeof szbuffer);
+	sprintf(szbuffer, msg);
 	ibytessent = 0;
 	ibufferlen = strlen(szbuffer);
 	ibytessent = send(s, szbuffer, ibufferlen, 0);
@@ -147,7 +150,7 @@ void receiveMessage()
 	// reset buffer
 	memset(szbuffer, 0, sizeof szbuffer);
 
-	if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
+	if ((ibytesrecv = recv(s, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
 		throw "Receive failed\n";
 }
 
@@ -175,12 +178,38 @@ void getFile()
 	cin >> ch;
 	sendMessage(ch);
 
-	// receive the message
+	// receive the size
 	receiveMessage();
-	cout << szbuffer << endl;
+	int filesize;
+	sscanf(szbuffer, "%d", &filesize);
 
+	std::string s = std::to_string(BUFFER_SIZE);
+	char const *psize = s.c_str();
+
+	sendMessage((char *)psize);
+
+	int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
+
+	/*char *msg;               
+	msg = new char[filesize];*/
+
+	char* msg = (char*)calloc(filesize, sizeof(char));
+
+	for (int z = 0; z < (nrPackages-1); z++)
+	{
+		// receive the message
+		receiveMessage();
+		strcat(msg, szbuffer);
+		cout << "==";
+	}
+
+	cout << endl;
+	receiveMessage();
 	// create file
-	createFile(ch, szbuffer);
+	createFile(ch, msg);
+
+	sendMessage(OK);
+	cout << "File Succesfully Downloaded !" << endl;
 }
 
 void setHandShake()

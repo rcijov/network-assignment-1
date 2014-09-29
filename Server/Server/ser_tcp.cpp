@@ -16,6 +16,7 @@
 #include <windows.h>
 #include "Headers\dirent.h"
 #include <sys/types.h>
+#include <string>
 
 using namespace std;
 
@@ -39,8 +40,8 @@ union {
 int calen = sizeof(ca);
 
 //buffer data types
-char szbuffer[128];
-
+#define BUFFER_SIZE 1028
+char szbuffer[BUFFER_SIZE];
 char *buffer;
 int ibufferlen;
 int ibytesrecv;
@@ -135,7 +136,7 @@ void getList()
 	DIR *mydir = opendir("./Files/");
 
 	struct dirent *entry = NULL;
-	char files[128] = "Here is the List of Files : \r\n";
+	char files[1028] = "Here is the List of Files : \r\n";
 
 	while ((entry = readdir(mydir)))
 	{
@@ -177,16 +178,29 @@ void getFile()
 
 			cout << "File size: " << filesize << endl;
 
+			std::string s = std::to_string(filesize);
+			char const *psize = s.c_str();
+			
+			// send the size of the file
+			sendMessage((char *)psize);
+
+			// receive if it is okay
+			receiveMessage();
+
+			int clientBuffer;
+			sscanf(szbuffer, "%d", &clientBuffer);
+
 			int count = 0;
 			// Loop through the file and stream in chunks based on the buffer size
 			while (!filedata.eof()){
 				memset(szbuffer, 0, sizeof szbuffer);
-				filedata.read(szbuffer, BUFFER_SIZE - 1);
+				filedata.read(szbuffer, clientBuffer - 1);
 				ibufferlen = strlen(szbuffer);
 				count += ibufferlen;
 				cout << "Sent " << count << " bytes" << endl;
 				sendMessage(szbuffer);
 			}
+
 			filedata.close();
 		}
 		else{
@@ -199,6 +213,7 @@ void getFile()
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 	sendMessage(OK);
+	sendMessage(CON);
 }
 
 // Menu Choices Select
@@ -224,6 +239,9 @@ void menuSelect()
 	case 4:
 		sendMessage("DISC");
 		cout << "Exiting Client" << endl;
+		break;
+	case 5:
+		printMenu();
 		break;
 	}
 }
@@ -324,7 +342,10 @@ int main(void){
 				//Print reciept of successful message. 
 				cout << "This is message from client: " << szbuffer << endl;
 				//Select From Menu
-				menuSelect();
+				if (strcmp(szbuffer, OK))
+				{
+					menuSelect();
+				}
 			}
 
 		}//wait loop
