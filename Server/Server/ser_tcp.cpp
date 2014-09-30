@@ -73,14 +73,18 @@ int choice;
 
 //filename
 char filename[30];
+char ch[128];
 
 //FTP Messages
 #define CON "CON"
+#define DONE "DONE"
 #define GET "GET"
 #define PUT "PUT"
 #define DISC "DISC"
 #define OK "OK"
 #define LIST "LIST"
+#define ERR "ERR"
+#define FILE "FILE"
 
 //reference for used structures
 
@@ -147,6 +151,8 @@ void getList()
 	sendMessage(files);
 
 	closedir(mydir);
+
+	sendMessage(DONE);
 }
 
 void getFile()
@@ -205,6 +211,7 @@ void getFile()
 		}
 		else{
 			cout << "File does not exist, sending decline" << endl;
+			sendMessage(ERR);
 		}
 		// Print out any errors
 	}
@@ -212,8 +219,71 @@ void getFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+	sendMessage(DONE);
+}
+
+void createFile(char file[], char msg[])
+{
+	ofstream myfile;
+	char path[40] = "../Files/";
+	strcat(path, file);
+	myfile.open(path);
+	myfile << msg;
+	myfile.close();
+}
+
+void putFile()
+{
+	// send request for the file
 	sendMessage(OK);
-	sendMessage(CON);
+
+	// receive the file that server request
+	receiveMessage();
+	cout << szbuffer;
+
+	// input the text file
+	memset(ch, 0, sizeof ch);
+	cin >> ch;
+	sendMessage(ch);
+
+	// receive the size
+	receiveMessage();
+	if (strcmp((char const*)szbuffer, ERR))
+	{
+		int filesize;
+		sscanf(szbuffer, "%d", &filesize);
+
+		std::string s = std::to_string(BUFFER_SIZE);
+		char const *psize = s.c_str();
+
+		sendMessage((char *)psize);
+
+		int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
+
+		char* msg = (char*)calloc(filesize, sizeof(char));
+
+		for (int z = 0; z < (nrPackages); z++)
+		{
+			// receive the message
+			receiveMessage();
+			strcat(msg, szbuffer);
+			cout << "==";
+		}
+		cout << endl;
+		receiveMessage();
+
+		// create file
+		createFile(ch, msg);
+		cout << "File Succesfully Uploaded !" << endl;
+
+		if (!strcmp((char const*)szbuffer, DONE))
+		{
+			sendMessage("File Succesfully Uploaded !");
+		}
+	}
+	else{
+		cout << "File was not found." << endl;
+	}
 }
 
 // Menu Choices Select
@@ -225,20 +295,19 @@ void menuSelect()
 	switch (choice)
 	{
 	case 1:
-		cout << "one" << endl;
 		getFile();
 		break;
 	case 2:
-		cout << "two" << endl;
-		sendMessage("Put File was Done Successfully.\r\n");
+		putFile();
 		break;
 	case 3:
-		sendMessage("LIST");
+		sendMessage(LIST);
 		getList();
 		break;
 	case 4:
-		sendMessage("DISC");
+		sendMessage(DISC);
 		cout << "Exiting Client" << endl;
+		choice = 4;
 		break;
 	case 5:
 		printMenu();

@@ -47,6 +47,8 @@ HOSTENT *rp;
 char localhost[11],
 remotehost[11];
 
+//filename
+char filename[30];
 
 //other
 HANDLE test;
@@ -58,12 +60,14 @@ char ch[128];
 
 //FTP Messages
 #define CON "CON"
-#define FILENAME "FILENAME"
+#define DONE "DONE"
+#define FILE "FILE"
 #define GET "GET"
 #define PUT "PUT"
 #define DISC "DISC"
 #define LIST "LIST"
 #define OK "OK"
+#define ERR "ERR"
 
 //reference for used structures
 
@@ -87,16 +91,6 @@ struct  in_addr sin_addr;
 char    sin_zero[8];
 }; */
 
-// Compare Two Strings - 1 if they are equal
-int strcmp(char *s1, char *s2)
-{
-	int i;
-	for (i = 0; s1[i] == s2[i]; i++)
-		if (s1[i] == '\0')
-			return 1;
-	return s1[i] - s2[i];
-}
-
 // Send Command
 void sendMessage(char msg[])
 {
@@ -107,6 +101,23 @@ void sendMessage(char msg[])
 	ibytessent = send(s, szbuffer, ibufferlen, 0);
 	if (ibytessent == SOCKET_ERROR)
 		throw "Send failed\n";
+}
+
+void getCommand()
+{
+	cout << "Your Command: ";
+	cin >> ch;
+	sendMessage(ch);
+}
+
+// Compare Two Strings (1 if they are equal)
+int strcmp(char *s1, char *s2)
+{
+	int i;
+	for (i = 0; s1[i] == s2[i]; i++)
+		if (s1[i] == '\0')
+			return 1;
+	return s1[i] - s2[i];
 }
 
 void setHost()
@@ -167,7 +178,7 @@ void createFile(char file[],char msg[])
 void getFile()
 {
 	// send request for the file
-	sendMessage(FILENAME);
+	sendMessage(FILE);
 
 	// receive the file that server request
 	receiveMessage();
@@ -180,36 +191,42 @@ void getFile()
 
 	// receive the size
 	receiveMessage();
-	int filesize;
-	sscanf(szbuffer, "%d", &filesize);
-
-	std::string s = std::to_string(BUFFER_SIZE);
-	char const *psize = s.c_str();
-
-	sendMessage((char *)psize);
-
-	int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
-
-	/*char *msg;               
-	msg = new char[filesize];*/
-
-	char* msg = (char*)calloc(filesize, sizeof(char));
-
-	for (int z = 0; z < (nrPackages-1); z++)
+	if (strcmp((char const*)szbuffer, ERR))
 	{
-		// receive the message
+		int filesize;
+		sscanf(szbuffer, "%d", &filesize);
+
+		std::string s = std::to_string(BUFFER_SIZE);
+		char const *psize = s.c_str();
+
+		sendMessage((char *)psize);
+
+		int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
+
+		char* msg = (char*)calloc(filesize, sizeof(char));
+
+		for (int z = 0; z < (nrPackages); z++)
+		{
+			// receive the message
+			receiveMessage();
+			strcat(msg, szbuffer);
+			cout << "==";
+		}
+		cout << endl;
 		receiveMessage();
-		strcat(msg, szbuffer);
-		cout << "==";
+
+		// create file
+		createFile(ch, msg);
+		cout << "File Succesfully Downloaded !" << endl;
+
+		if (!strcmp((char const*)szbuffer, DONE))
+		{
+			getCommand();
+		}
 	}
-
-	cout << endl;
-	receiveMessage();
-	// create file
-	createFile(ch, msg);
-
-	sendMessage(OK);
-	cout << "File Succesfully Downloaded !" << endl;
+	else{
+		cout << "File was not found." << endl;
+	}
 }
 
 void setHandShake()
@@ -221,6 +238,100 @@ void setHandShake()
 	ibytessent = send(s, szbuffer, ibufferlen, 0);
 	if (ibytessent == SOCKET_ERROR)
 		throw "Send failed\n";
+}
+
+void menuSelect()
+{
+	if (!strcmp((char const*)szbuffer, DISC)){
+		cout << endl;
+		sprintf(ch, DISC);
+		sendMessage("4");
+	}
+	else if (!strcmp((char const*)szbuffer, GET)){
+		getFile();
+	}
+	else if (!strcmp((char const*)szbuffer, CON)){
+		if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
+			throw "Receive failed\n";
+		else
+			cout << szbuffer;
+	}
+	else if (!strcmp((char const*)szbuffer, LIST)){
+		//sendMessage(LIST);
+		memset(szbuffer, 0, sizeof szbuffer);
+		receiveMessage();
+		cout << szbuffer;
+	}
+	else{
+		getCommand();
+	}
+}
+
+void putFile()
+{
+	sendMessage("2");
+	receiveMessage();
+	cout << "[PUT] Filename.ext: ";
+	cin >> ch;
+
+	sprintf(filename, szbuffer);
+	char filepath[30] = "Files/";
+	strcat(filepath, filename);
+
+	ifstream filedata;
+	filebuf *pbuf;
+	int filesize;
+
+	try {
+
+		// Open the file
+		filedata.open(filepath);
+
+		if (filedata.is_open()){
+
+			// Get pointer to file buffer and determine file size
+			pbuf = filedata.rdbuf();
+			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
+			pbuf->pubseekpos(0, ios::in);
+
+			cout << "File size: " << filesize << endl;
+
+			std::string s = std::to_string(filesize);
+			char const *psize = s.c_str();
+
+			// send the size of the file
+			sendMessage((char *)psize);
+
+			// receive if it is okay
+			receiveMessage();
+
+			int clientBuffer;
+			sscanf(szbuffer, "%d", &clientBuffer);
+
+			int count = 0;
+			// Loop through the file and stream in chunks based on the buffer size
+			while (!filedata.eof()){
+				memset(szbuffer, 0, sizeof szbuffer);
+				filedata.read(szbuffer, clientBuffer - 1);
+				ibufferlen = strlen(szbuffer);
+				count += ibufferlen;
+				cout << "Sent " << count << " bytes" << endl;
+				sendMessage(szbuffer);
+			}
+
+			filedata.close();
+		}
+		else{
+			cout << "File does not exist, sending decline" << endl;
+			sendMessage(ERR);
+		}
+		// Print out any errors
+	}
+	catch (const char* str){
+		cerr << str << WSAGetLastError() << endl;
+	}
+	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+	sendMessage(DONE);
 }
 
 int main(void){
@@ -248,7 +359,6 @@ int main(void){
 
 
 		//Display name of local host.
-
 		gethostname(localhost, 10);
 		cout << "Local host name is \"" << localhost << "\"" << endl;
 
@@ -262,8 +372,9 @@ int main(void){
 			setConnection();
 			setHandShake();
 			choice = 0;
+			memset(ch, 0, sizeof ch);
 
-			while (1)
+			while (strcmp((char const*)ch, DISC))
 			{
 				/* Have an open connection, so, server is
 				- waiting for the client request message
@@ -274,32 +385,10 @@ int main(void){
 				ibytesrecv = 0;
 				memset(szbuffer, 0, sizeof szbuffer);
 
-				receiveMessage();
-
-				if (!strcmp((char const*)szbuffer, DISC)){
-					cout << endl;
-					break;
-				}
-				else if (!strcmp((char const*)szbuffer, GET)){
-					getFile();
-				}
-				else if (!strcmp((char const*)szbuffer, CON)){
-					if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
-						throw "Receive failed\n";
-					else
-						cout << szbuffer;
-				}
-				else if (!strcmp((char const*)szbuffer, LIST)){
-					sendMessage(LIST);
-					memset(szbuffer, 0, sizeof szbuffer);
+				do{
 					receiveMessage();
-					cout << szbuffer;
-				}
-				else{
-					cout << "Your Command: ";
-					cin >> ch;
-					sendMessage(ch);
-				}
+					menuSelect();
+				} while (strcmp((char const*)ch, DISC));
 
 			}
 		} // try loop
