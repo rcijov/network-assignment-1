@@ -94,7 +94,7 @@ char    sin_zero[8];
 // Send Command
 void sendMessage(char msg[])
 {
-	memset(szbuffer, 0, sizeof szbuffer);
+	//memset(szbuffer, 0, sizeof szbuffer);
 	sprintf(szbuffer, msg);
 	ibytessent = 0;
 	ibufferlen = strlen(szbuffer);
@@ -240,12 +240,83 @@ void setHandShake()
 		throw "Send failed\n";
 }
 
+void putFile()
+{
+	cout << "[PUT] Filename.ext: ";
+	cin >> ch;
+
+	sprintf(filename, ch);
+	char filepath[30] = "Files/";
+	strcat(filepath, filename);
+
+	ifstream filedata;
+	filebuf *pbuf;
+	int filesize;
+
+	// send the file name
+	sendMessage(ch);
+	receiveMessage();
+
+	try {
+
+		// Open the file
+		filedata.open(filepath);
+
+		if (filedata.is_open()){
+
+			// Get pointer to file buffer and determine file size
+			pbuf = filedata.rdbuf();
+			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
+			pbuf->pubseekpos(0, ios::in);
+
+			std::string s = std::to_string(filesize);
+			char const *psize = s.c_str();
+
+			// send the size of the file
+			sendMessage((char *)psize);
+			receiveMessage();
+
+			std::string sa = std::to_string(BUFFER_SIZE);
+			char const *pasize = sa.c_str();
+
+			// send the buffer size
+			sendMessage((char *)pasize);
+			receiveMessage();
+
+			int count = 0;
+
+			// Loop through the file and stream in chunks based on the buffer size
+			while (!filedata.eof()){
+				memset(szbuffer, 0, sizeof szbuffer);
+				filedata.read(szbuffer, BUFFER_SIZE - 1);
+				ibufferlen = strlen(szbuffer);
+				count += ibufferlen;
+				sendMessage(szbuffer);
+			}
+			filedata.close();
+		}
+		else{
+			cout << "File does not exist, sending decline" << endl;
+			sendMessage(ERR);
+		}
+		// Print out any errors
+	}
+	catch (const char* str){
+		cerr << str << WSAGetLastError() << endl;
+	}
+	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+	sendMessage(DONE);
+}
+
 void menuSelect()
 {
 	if (!strcmp((char const*)szbuffer, DISC)){
 		cout << endl;
 		sprintf(ch, DISC);
 		sendMessage("4");
+	}
+	else if (!strcmp((char const*)szbuffer, PUT)){
+		putFile();
 	}
 	else if (!strcmp((char const*)szbuffer, GET)){
 		getFile();
@@ -265,73 +336,6 @@ void menuSelect()
 	else{
 		getCommand();
 	}
-}
-
-void putFile()
-{
-	sendMessage("2");
-	receiveMessage();
-	cout << "[PUT] Filename.ext: ";
-	cin >> ch;
-
-	sprintf(filename, szbuffer);
-	char filepath[30] = "Files/";
-	strcat(filepath, filename);
-
-	ifstream filedata;
-	filebuf *pbuf;
-	int filesize;
-
-	try {
-
-		// Open the file
-		filedata.open(filepath);
-
-		if (filedata.is_open()){
-
-			// Get pointer to file buffer and determine file size
-			pbuf = filedata.rdbuf();
-			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
-			pbuf->pubseekpos(0, ios::in);
-
-			cout << "File size: " << filesize << endl;
-
-			std::string s = std::to_string(filesize);
-			char const *psize = s.c_str();
-
-			// send the size of the file
-			sendMessage((char *)psize);
-
-			// receive if it is okay
-			receiveMessage();
-
-			int clientBuffer;
-			sscanf(szbuffer, "%d", &clientBuffer);
-
-			int count = 0;
-			// Loop through the file and stream in chunks based on the buffer size
-			while (!filedata.eof()){
-				memset(szbuffer, 0, sizeof szbuffer);
-				filedata.read(szbuffer, clientBuffer - 1);
-				ibufferlen = strlen(szbuffer);
-				count += ibufferlen;
-				cout << "Sent " << count << " bytes" << endl;
-				sendMessage(szbuffer);
-			}
-
-			filedata.close();
-		}
-		else{
-			cout << "File does not exist, sending decline" << endl;
-			sendMessage(ERR);
-		}
-		// Print out any errors
-	}
-	catch (const char* str){
-		cerr << str << WSAGetLastError() << endl;
-	}
-	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-	sendMessage(DONE);
 }
 
 int main(void){

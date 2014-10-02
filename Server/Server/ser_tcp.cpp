@@ -40,7 +40,7 @@ union {
 int calen = sizeof(ca);
 
 //buffer data types
-#define BUFFER_SIZE 1028
+#define BUFFER_SIZE 128
 char szbuffer[BUFFER_SIZE];
 char *buffer;
 int ibufferlen;
@@ -67,7 +67,6 @@ DWORD dwtest;
 
 //menu choice
 int choice;
-#define BUFFER_SIZE 128
 
 #include <fstream>
 
@@ -130,7 +129,7 @@ void receiveMessage()
 	// reset buffer
 	memset(szbuffer, 0, sizeof szbuffer);
 
-	if ((ibytesrecv = recv(s1, szbuffer, 128, 0)) == SOCKET_ERROR)
+	if ((ibytesrecv = recv(s1, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
 		throw "Receive error in server program\n";
 }
 
@@ -225,7 +224,7 @@ void getFile()
 void createFile(char file[], char msg[])
 {
 	ofstream myfile;
-	char path[40] = "../Files/";
+	char path[40] = "Files/";
 	strcat(path, file);
 	myfile.open(path);
 	myfile << msg;
@@ -235,55 +234,46 @@ void createFile(char file[], char msg[])
 void putFile()
 {
 	// send request for the file
-	sendMessage(OK);
+	sendMessage(PUT);
 
 	// receive the file that server request
 	receiveMessage();
-	cout << szbuffer;
 
-	// input the text file
-	memset(ch, 0, sizeof ch);
-	cin >> ch;
-	sendMessage(ch);
+	char ch[30];
+	sprintf(ch, szbuffer);
 
-	// receive the size
+	sendMessage(OK);
+
+	memset(szbuffer, 0, sizeof szbuffer);
+
+	// get size
 	receiveMessage();
-	if (strcmp((char const*)szbuffer, ERR))
+
+	int filesize;
+	sscanf(szbuffer, "%d", &filesize);
+
+	sendMessage(OK);
+
+	receiveMessage();
+
+	int buffSize = 0;
+	sscanf(szbuffer, "%d", &buffSize);
+
+	sendMessage(OK);
+
+	int nrPackages = (int)(ceil((double)filesize / (double)buffSize));
+
+	char* msg = (char*)calloc(filesize, sizeof(char));
+
+	for (int z = 0; z < (nrPackages); z++)
 	{
-		int filesize;
-		sscanf(szbuffer, "%d", &filesize);
-
-		std::string s = std::to_string(BUFFER_SIZE);
-		char const *psize = s.c_str();
-
-		sendMessage((char *)psize);
-
-		int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
-
-		char* msg = (char*)calloc(filesize, sizeof(char));
-
-		for (int z = 0; z < (nrPackages); z++)
-		{
-			// receive the message
-			receiveMessage();
-			strcat(msg, szbuffer);
-			cout << "==";
-		}
-		cout << endl;
+		// receive the message
 		receiveMessage();
-
-		// create file
-		createFile(ch, msg);
-		cout << "File Succesfully Uploaded !" << endl;
-
-		if (!strcmp((char const*)szbuffer, DONE))
-		{
-			sendMessage("File Succesfully Uploaded !");
-		}
+		strcat(msg, szbuffer);
 	}
-	else{
-		cout << "File was not found." << endl;
-	}
+
+	// create file
+	createFile(ch, msg);
 }
 
 // Menu Choices Select
