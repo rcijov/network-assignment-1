@@ -311,8 +311,8 @@ void putFile()
 	if (!strcmp((char const*)szbuffer, DONE))
 	{
 		cout << "File has been uploaded successfully." << endl;
-		memset(szbuffer, 0, sizeof szbuffer);
 	}
+	memset(szbuffer, 0, sizeof szbuffer);
 }
 
 void menuSelect()

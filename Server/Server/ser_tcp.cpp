@@ -249,34 +249,42 @@ void putFile()
 	// get size
 	receiveMessage();
 
-	int filesize;
-	sscanf(szbuffer, "%d", &filesize);
-
-	sendMessage(OK);
-
-	receiveMessage();
-
-	int buffSize = 0;
-	sscanf(szbuffer, "%d", &buffSize);
-
-	sendMessage(OK);
-
-	int nrPackages = (int)(ceil((double)filesize / (double)buffSize));
-
-	char* msg = (char*)calloc(filesize, sizeof(char));
-
-	for (int z = 0; z < (nrPackages); z++)
+	if (strcmp((char const*)szbuffer, ERR))
 	{
-		// receive the message
+		int filesize;
+		sscanf(szbuffer, "%d", &filesize);
+
+		sendMessage(OK);
+
 		receiveMessage();
-		strcat(msg, szbuffer);
+
+		int buffSize = 0;
+		sscanf(szbuffer, "%d", &buffSize);
+
+		sendMessage(OK);
+
+		int nrPackages = (int)(ceil((double)filesize / (double)buffSize));
+
+		char* msg = (char*)calloc(filesize, sizeof(char));
+
+		for (int z = 0; z < (nrPackages); z++)
+		{
+			// receive the message
+			receiveMessage();
+			strcat(msg, szbuffer);
+		}
+
+		// create file
+		createFile(ch, msg);
+
+		sendMessage(DONE);
+		sendMessage(OK);
 	}
-
-	// create file
-	createFile(ch, msg);
-
-	sendMessage(DONE);
-	sendMessage(OK);
+	else{
+		sendMessage(ERR);
+		sendMessage(OK);
+	}
+	
 }
 
 // Menu Choices Select
