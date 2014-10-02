@@ -274,6 +274,9 @@ void putFile()
 
 	// create file
 	createFile(ch, msg);
+
+	sendMessage(DONE);
+	sendMessage(OK);
 }
 
 // Menu Choices Select

@@ -168,7 +168,7 @@ void receiveMessage()
 void createFile(char file[],char msg[])
 {
 	ofstream myfile;
-	char path[40] = "../Files/";
+	char path[40] = "Files/";
 	strcat(path, file);
 	myfile.open(path);
 	myfile << msg;
@@ -305,7 +305,14 @@ void putFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-	sendMessage(DONE);
+	sendMessage(OK);
+
+	receiveMessage();
+	if (!strcmp((char const*)szbuffer, DONE))
+	{
+		cout << "File has been uploaded successfully." << endl;
+		memset(szbuffer, 0, sizeof szbuffer);
+	}
 }
 
 void menuSelect()
