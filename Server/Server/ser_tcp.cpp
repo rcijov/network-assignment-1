@@ -133,6 +133,13 @@ void receiveMessage()
 		throw "Receive error in server program\n";
 }
 
+// check if file exist
+bool fileExist(const char *file)
+{
+	std::ifstream infile(file);
+	return infile.good();
+}
+
 // List of Files
 void getList()
 {
@@ -274,6 +281,22 @@ void putFile()
 			strcat(msg, szbuffer);
 		}
 
+		char path[40] = "Files/";
+		strcat(path, ch);
+
+		// create file if it does not exist
+		while (fileExist(path))
+		{
+			memset(ch, 0, sizeof ch);
+			memset(path, 0, sizeof path);
+			sendMessage("EXIST");
+			receiveMessage();
+			sprintf(ch, szbuffer);
+			sprintf(path, "Files/");
+			strcat(path, szbuffer);
+		}
+
+		sendMessage("GOOD");
 		// create file
 		createFile(ch, msg);
 

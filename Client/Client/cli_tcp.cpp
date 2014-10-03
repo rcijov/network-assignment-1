@@ -315,6 +315,17 @@ void putFile()
 				sendMessage(szbuffer);
 			}
 			filedata.close();
+
+			// check if exists
+			receiveMessage();
+			while (strcmp((char const*)szbuffer, "GOOD"))
+			{
+				memset(szbuffer, 0, sizeof szbuffer);
+				cout << "File Name Exists, New Name File: ";
+				cin >> ch;
+				sendMessage(ch);
+				receiveMessage();
+			}
 		}
 		else{
 			cout << "File does not exist, sending decline" << endl;
