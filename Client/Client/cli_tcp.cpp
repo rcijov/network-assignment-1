@@ -175,6 +175,13 @@ void createFile(char file[],char msg[])
 	myfile.close();
 }
 
+// check if file exist
+bool fileExist(const char *file)
+{
+	std::ifstream infile(file);
+	return infile.good();
+}
+
 void getFile()
 {
 	// send request for the file
@@ -215,8 +222,22 @@ void getFile()
 		cout << endl;
 		receiveMessage();
 
-		// create file
+		char path[40] = "Files/";
+		strcat(path, ch);
+
+		// create file if it does not exist
+		while (fileExist(path))
+		{	
+			memset(ch, 0, sizeof ch);
+			memset(path, 0, sizeof path);
+			cout << "File Name Exists, New Name File: ";
+			cin >> ch;
+			sprintf(path, "Files/");
+			strcat(path, ch);
+		}
+
 		createFile(ch, msg);
+
 		cout << "File Succesfully Downloaded !" << endl;
 
 		if (!strcmp((char const*)szbuffer, DONE))
