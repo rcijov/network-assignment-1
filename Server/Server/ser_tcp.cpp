@@ -84,6 +84,7 @@ char ch[128];
 #define LIST "LIST"
 #define ERR "ERR"
 #define FILE "FILE"
+#define DEL "DEL"
 
 //reference for used structures
 
@@ -120,7 +121,7 @@ void sendMessage(char msg[])
 // Print Menu
 void printMenu()
 {
-	sendMessage("Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP\r\n");
+	sendMessage("Please Select a Number From the Menu:\r\n(1)Get File     (2)Put File     (3)List Files     (4)Exit FTP	(9)Delete File\r\n");
 }
 
 // Receive Message
@@ -310,6 +311,30 @@ void putFile()
 	
 }
 
+// Delete File
+void deleteFile()
+{
+	// send the DEL request
+	sendMessage(DEL);
+
+	receiveMessage();
+
+	char path[40] = "Files/";
+	strcat(path, szbuffer);
+
+	if (fileExist(path))
+	{
+		remove(path);
+		sendMessage(OK);
+	}
+	else
+	{ 
+		sendMessage(ERR);
+	}
+
+	sendMessage(DONE);
+}
+
 // Menu Choices Select
 void menuSelect()
 {
@@ -335,6 +360,9 @@ void menuSelect()
 		break;
 	case 5:
 		printMenu();
+		break;
+	case 9:
+		deleteFile();
 		break;
 	}
 }

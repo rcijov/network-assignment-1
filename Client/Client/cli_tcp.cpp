@@ -68,6 +68,7 @@ char ch[128];
 #define LIST "LIST"
 #define OK "OK"
 #define ERR "ERR"
+#define DEL "DEL"
 
 //reference for used structures
 
@@ -347,6 +348,40 @@ void putFile()
 	memset(szbuffer, 0, sizeof szbuffer);
 }
 
+void delFile()
+{
+	cout << "[DEL] Filename.ext: ";
+	cin >> ch;
+
+	char* an = new char[1];
+
+	cout << "Are you sure that you want to delete " << ch << " ? (Y)es or (N)o : ";
+	cin >> an;
+	
+	if (!strcmp((char const*)an, "y"))
+	{
+		sendMessage(ch);
+		receiveMessage();
+
+		if (strcmp((char const*)szbuffer, ERR))
+		{
+			cout << "Filename " << ch << " has been deleted." << endl;
+		}
+		else{
+			cout << "Filename " << ch << " does not exist." << endl;
+		}
+	}
+	else if (!strcmp((char const*)an, "n"))
+	{
+		cout << "Delete Canceled." << endl;
+	}
+	else{
+		cout << "Invalid Command." << endl;
+	}
+
+	sendMessage(OK);
+}
+
 void menuSelect()
 {
 	if (!strcmp((char const*)szbuffer, DISC)){
@@ -356,6 +391,9 @@ void menuSelect()
 	}
 	else if (!strcmp((char const*)szbuffer, PUT)){
 		putFile();
+	}
+	else if (!strcmp((char const*)szbuffer, DEL)){
+		delFile();
 	}
 	else if (!strcmp((char const*)szbuffer, GET)){
 		getFile();
