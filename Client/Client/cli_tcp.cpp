@@ -92,6 +92,21 @@ struct  in_addr sin_addr;
 char    sin_zero[8];
 }; */
 
+/*  returns 1 iff str ends with suffix  */
+int str_ends_with(const char * str, const char * suffix) {
+
+	if (str == NULL || suffix == NULL)
+		return 0;
+
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+
+	if (suffix_len > str_len)
+		return 0;
+
+	return 0 == strncmp(str + str_len - suffix_len, suffix, suffix_len);
+}
+
 // Send Command
 void sendMessage(char msg[])
 {
@@ -106,7 +121,7 @@ void sendMessage(char msg[])
 
 void getCommand()
 {
-	cout << "Your Command: ";
+	std::cout << "Your Command: ";
 	cin >> ch;
 	sendMessage(ch);
 }
@@ -124,9 +139,9 @@ int strcmp(char *s1, char *s2)
 void setHost()
 {
 	//Ask for name of remote server
-	cout << "Please enter your remote server name: " << flush;
+	std::cout << "Please enter your remote server name: " << flush;
 	cin >> remotehost;
-	cout << "Remote host name is: \"" << remotehost << "\"" << endl;
+	std::cout << "Remote host name is: \"" << remotehost << "\"" << endl;
 
 	if ((rp = gethostbyname(remotehost)) == NULL)
 		throw "remote gethostbyname failed\n";
@@ -149,8 +164,8 @@ void setConnection()
 	sa_in.sin_port = htons(port);
 
 	//Display the host machine internet address
-	cout << "Connecting to remote host:";
-	cout << inet_ntoa(sa_in.sin_addr) << endl;
+	std::cout << "Connecting to remote host:";
+	std::cout << inet_ntoa(sa_in.sin_addr) << endl;
 
 	//Connect Client to the server
 	if (connect(s, (LPSOCKADDR)&sa_in, sizeof(sa_in)) == SOCKET_ERROR)
@@ -171,7 +186,7 @@ void createFile(char file[],char msg[])
 	ofstream myfile;
 	char path[40] = "Files/";
 	strcat(path, file);
-	myfile.open(path);
+	myfile.open(path, ios::binary);
 	myfile << msg;
 	myfile.close();
 }
@@ -183,6 +198,28 @@ bool fileExist(const char *file)
 	return infile.good();
 }
 
+void remove(char *pString, char letter)
+{
+	// ok we're mixing C and C++ here - it's legal a little ugly but... 
+	char * temp = new char[strlen(pString)];
+	char * sourceStr = pString;
+	char * destStr = temp;
+
+	while (*sourceStr != 0)
+	{
+		if (*sourceStr != letter)
+		{
+			*destStr = *sourceStr;
+			destStr++;
+			*destStr = 0; // always keep it terminated 
+		}
+		sourceStr++;
+	}
+	// done 
+	strcpy(pString, destStr);
+	delete destStr;
+}
+
 void getFile()
 {
 	// send request for the file
@@ -190,64 +227,102 @@ void getFile()
 
 	// receive the file that server request
 	receiveMessage();
-	cout << szbuffer;
+	std::cout << szbuffer;
 
 	// input the text file
 	memset(ch, 0, sizeof ch);
 	cin >> ch;
 	sendMessage(ch);
 
-	// receive the size
-	receiveMessage();
-	if (strcmp((char const*)szbuffer, ERR))
-	{
-		int filesize;
-		sscanf(szbuffer, "%d", &filesize);
+	char filename[40] = "Files/";
+	strcat(filename, szbuffer);
 
-		std::string s = std::to_string(BUFFER_SIZE);
-		char const *psize = s.c_str();
+	char *buffer;
+	int ibufferlen = 0;
+	int ibytessent;
+	int ibytesrecv = 0;
 
-		sendMessage((char *)psize);
+	//host data types
+	HOSTENT *hp;
+	HOSTENT *rp;
 
-		int nrPackages = (int)(ceil((double)filesize / (double)BUFFER_SIZE));
+	// Perform a get request
+	// Parse response and filesize from server
+	const char * response = new char[2];
+	int filesize;
+	ofstream output_file;
 
-		char* msg = (char*)calloc(filesize, sizeof(char));
+	try {
+		//wait for reception of server response.
+		ibytesrecv = 0;
+		if ((ibytesrecv = recv(s, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
+			throw "Receive failed\n";
 
-		for (int z = 0; z < (nrPackages); z++)
-		{
-			// receive the message
-			receiveMessage();
-			strcat(msg, szbuffer);
-			cout << "==";
+		cout << "Server responded with " << szbuffer << endl;
+
+		sscanf(szbuffer, "%s %d", response, &filesize);
+		cout << "Response " << response << " filesize " << filesize << endl;
+
+		// Ensure the response from the socket is OK
+		if (!strcmp((const char*)response, OK)){
+
+			// Open our local file for writing
+			output_file.open(filename, ios::binary);
+
+			// Send ack to start data transfer
+			memset(szbuffer, 0, BUFFER_SIZE);
+			/*sprintf(szbuffer, "SEND");
+			ibufferlen = strlen(szbuffer);
+
+			sendMessage(szbuffer);*/
+
+			// Intermediary buffer for formatting incoming data
+			char * outdata = new char[BUFFER_SIZE];
+			int count = 0;
+
+
+			//if (str_ends_with(szbuffer, "GET"))
+			//{
+			//	int len = strlen(szbuffer) - 4;
+			//	string s(szbuffer, szbuffer + len);
+
+			//	char *a = new char[s.size() + 1];
+			//	a[s.size()] = 0;
+			//	memcpy(a, s.c_str(), s.size());
+
+			//	sprintf(szbuffer, a);
+			//	sendMessage(OK);
+			//}
+
+			// Read data from the server until we have received the file
+			while (count < filesize){
+				if ((ibytesrecv = recv(s, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
+					throw "Receive failed\n";
+
+				sprintf(outdata, "%s", szbuffer);
+				output_file.write(outdata, sizeof(outdata));
+
+				count += sizeof(outdata);
+
+				cout << "Received " << count << " bytes" << endl;
+				// Sanitize buffer
+				memset(szbuffer, 0, BUFFER_SIZE);
+				memset(outdata, 0, BUFFER_SIZE);
+			}
+
+			// Close our output file
+			output_file.close();
+
+			// Clear the buffer and send an ack to the server to confirm receipt
+			memset(szbuffer, 0, BUFFER_SIZE);
 		}
-		cout << endl;
-		receiveMessage();
-
-		char path[40] = "Files/";
-		strcat(path, ch);
-
-		// create file if it does not exist
-		while (fileExist(path))
-		{	
-			memset(ch, 0, sizeof ch);
-			memset(path, 0, sizeof path);
-			cout << "File Name Exists, New Name File: ";
-			cin >> ch;
-			sprintf(path, "Files/");
-			strcat(path, ch);
-		}
-
-		createFile(ch, msg);
-
-		cout << "File Succesfully Downloaded !" << endl;
-
-		if (!strcmp((char const*)szbuffer, DONE))
-		{
-			getCommand();
+		else{
+			// Make a note that the file does not exist
+			cout << "Requested file does not exist" << endl;
 		}
 	}
-	else{
-		cout << "File was not found." << endl;
+	catch (const char* str){
+		cerr << str << WSAGetLastError() << endl;
 	}
 }
 
@@ -264,7 +339,7 @@ void setHandShake()
 
 void putFile()
 {
-	cout << "[PUT] Filename.ext: ";
+	std::cout << "[PUT] Filename.ext: ";
 	cin >> ch;
 
 	sprintf(filename, ch);
@@ -322,14 +397,14 @@ void putFile()
 			while (strcmp((char const*)szbuffer, "GOOD"))
 			{
 				memset(szbuffer, 0, sizeof szbuffer);
-				cout << "File Name Exists, New Name File: ";
+				std::cout << "File Name Exists, New Name File: ";
 				cin >> ch;
 				sendMessage(ch);
 				receiveMessage();
 			}
 		}
 		else{
-			cout << "File does not exist, sending decline" << endl;
+			std::cout << "File does not exist, sending decline" << endl;
 			sendMessage(ERR);
 		}
 		// Print out any errors
@@ -343,19 +418,19 @@ void putFile()
 	receiveMessage();
 	if (!strcmp((char const*)szbuffer, DONE))
 	{
-		cout << "File has been uploaded successfully." << endl;
+		std::cout << "File has been uploaded successfully." << endl;
 	}
 	memset(szbuffer, 0, sizeof szbuffer);
 }
 
 void delFile()
 {
-	cout << "[DEL] Filename.ext: ";
+	std::cout << "[DEL] Filename.ext: ";
 	cin >> ch;
 
 	char* an = new char[1];
 
-	cout << "Are you sure that you want to delete " << ch << " ? (Y)es or (N)o : ";
+	std::cout << "Are you sure that you want to delete " << ch << " ? (Y)es or (N)o : ";
 	cin >> an;
 	
 	if (!strcmp((char const*)an, "y"))
@@ -365,18 +440,18 @@ void delFile()
 
 		if (strcmp((char const*)szbuffer, ERR))
 		{
-			cout << "Filename " << ch << " has been deleted." << endl;
+			std::cout << "Filename " << ch << " has been deleted." << endl;
 		}
 		else{
-			cout << "Filename " << ch << " does not exist." << endl;
+			std::cout << "Filename " << ch << " does not exist." << endl;
 		}
 	}
 	else if (!strcmp((char const*)an, "n"))
 	{
-		cout << "Delete Canceled." << endl;
+		std::cout << "Delete Canceled." << endl;
 	}
 	else{
-		cout << "Invalid Command." << endl;
+		std::cout << "Invalid Command." << endl;
 	}
 
 	sendMessage(OK);
@@ -385,7 +460,7 @@ void delFile()
 void menuSelect()
 {
 	if (!strcmp((char const*)szbuffer, DISC)){
-		cout << endl;
+		std::cout << endl;
 		sprintf(ch, DISC);
 		sendMessage("4");
 	}
@@ -402,13 +477,13 @@ void menuSelect()
 		if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
 			throw "Receive failed\n";
 		else
-			cout << szbuffer;
+			std::cout << szbuffer;
 	}
 	else if (!strcmp((char const*)szbuffer, LIST)){
 		//sendMessage(LIST);
 		memset(szbuffer, 0, sizeof szbuffer);
 		receiveMessage();
-		cout << szbuffer;
+		std::cout << szbuffer;
 	}
 	else{
 		getCommand();
@@ -422,14 +497,14 @@ int main(void){
 	try {
 
 		if (WSAStartup(0x0202, &wsadata) != 0){
-			cout << "Error in starting WSAStartup()" << endl;
+			std::cout << "Error in starting WSAStartup()" << endl;
 		}
 		else {
 			buffer = "WSAStartup was successful\n";
 			WriteFile(test, buffer, sizeof(buffer), &dwtest, NULL);
 
 			/* Display the wsadata structure */
-			cout << endl
+			std::cout << endl
 				<< "wsadata.wVersion " << wsadata.wVersion << endl
 				<< "wsadata.wHighVersion " << wsadata.wHighVersion << endl
 				<< "wsadata.szDescription " << wsadata.szDescription << endl
@@ -441,7 +516,7 @@ int main(void){
 
 		//Display name of local host.
 		gethostname(localhost, 10);
-		cout << "Local host name is \"" << localhost << "\"" << endl;
+		std::cout << "Local host name is \"" << localhost << "\"" << endl;
 
 		if ((hp = gethostbyname(localhost)) == NULL)
 			throw "gethostbyname failed\n";

@@ -17,6 +17,8 @@
 #include "Headers\dirent.h"
 #include <sys/types.h>
 #include <string>
+#include <vector>
+#include <cstdio>
 
 using namespace std;
 
@@ -73,6 +75,12 @@ int choice;
 //filename
 char filename[30];
 char ch[128];
+
+#ifdef USES_REAL_FILE_TYPE
+#include <stdio.h>
+#else
+#define FILE void
+#endif
 
 //FTP Messages
 #define CON "CON"
@@ -169,9 +177,18 @@ void getFile()
 	sendMessage("[GET] Filename.ext: ");
 	receiveMessage();
 
-	sprintf(filename, szbuffer);
-	char filepath[30] = "Files/";
-	strcat(filepath, filename);
+	char filename[30] = "Files/";
+	strcat(filename, szbuffer);
+
+	char *buffer;
+	int ibufferlen = 0;
+	int ibytessent;
+	int ibytesrecv = 0;
+	//host data types
+	HOSTENT *hp;
+	HOSTENT *rp;
+
+	cout << "Sending file " << filename << endl;
 
 	ifstream filedata;
 	filebuf *pbuf;
@@ -180,45 +197,59 @@ void getFile()
 	try {
 
 		// Open the file
-		filedata.open(filepath);
+		filedata.open(filename, ios::binary);
 
 		if (filedata.is_open()){
 
 			// Get pointer to file buffer and determine file size
-			pbuf = filedata.rdbuf();
-			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
-			pbuf->pubseekpos(0, ios::in);
+			ifstream file(filename, ios::binary);
+			file.seekg(0, ios::end);
+			unsigned int filesize = file.tellg();
+			file.close();
 
 			cout << "File size: " << filesize << endl;
 
-			std::string s = std::to_string(filesize);
-			char const *psize = s.c_str();
-			
-			// send the size of the file
-			sendMessage((char *)psize);
+			// Send back an OK message to confirm receipt
+			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+			sprintf(szbuffer, "OK %d", filesize);
+			ibufferlen = strlen(szbuffer);
 
-			// receive if it is okay
-			receiveMessage();
+			sendMessage(szbuffer);
+			ofstream output_file;
+			output_file.open("Files/test.txt", ios::binary);
 
-			int clientBuffer;
-			sscanf(szbuffer, "%d", &clientBuffer);
+			// Wait for confirmation 
+			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+			sendMessage(szbuffer);
 
 			int count = 0;
 			// Loop through the file and stream in chunks based on the buffer size
 			while (!filedata.eof()){
-				memset(szbuffer, 0, sizeof szbuffer);
-				filedata.read(szbuffer, clientBuffer - 1);
-				ibufferlen = strlen(szbuffer);
+				filedata.read(reinterpret_cast<char*>(szbuffer), BUFFER_SIZE);
+				//reinterpret_cast<char*>(szbuffer)
+				ibufferlen = sizeof(szbuffer);
 				count += ibufferlen;
 				cout << "Sent " << count << " bytes" << endl;
-				sendMessage(szbuffer);
+				output_file.write(szbuffer, sizeof(szbuffer));
+				if ((ibytessent = send(s1, szbuffer, (BUFFER_SIZE), 0)) == SOCKET_ERROR)
+					throw "error in send in server program\n";
+
+				memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 			}
 
 			filedata.close();
+			output_file.close();
 		}
 		else{
+
 			cout << "File does not exist, sending decline" << endl;
-			sendMessage(ERR);
+			// Send back a NO to the client to indicate that the file does not exist
+			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+			sprintf(szbuffer, "NO -1");
+			ibufferlen = strlen(szbuffer);
+
+			if ((ibytessent = send(s1, szbuffer, ibufferlen, 0)) == SOCKET_ERROR)
+				throw "error in send in server program\n";
 		}
 		// Print out any errors
 	}
@@ -226,7 +257,6 @@ void getFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-	sendMessage(DONE);
 }
 
 void createFile(char file[], char msg[])
