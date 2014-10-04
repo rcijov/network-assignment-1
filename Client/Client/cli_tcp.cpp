@@ -250,7 +250,6 @@ void getFile()
 	// Parse response and filesize from server
 	const char * response = new char[2];
 	int filesize;
-	ofstream output_file;
 
 	try {
 		//wait for reception of server response.
@@ -266,53 +265,38 @@ void getFile()
 		// Ensure the response from the socket is OK
 		if (!strcmp((const char*)response, OK)){
 
-			// Open our local file for writing
-			output_file.open(filename, ios::binary);
-
 			// Send ack to start data transfer
 			memset(szbuffer, 0, BUFFER_SIZE);
-			/*sprintf(szbuffer, "SEND");
+			sprintf(szbuffer, "SEND");
 			ibufferlen = strlen(szbuffer);
 
-			sendMessage(szbuffer);*/
+			sendMessage(szbuffer);
 
 			// Intermediary buffer for formatting incoming data
-			char * outdata = new char[BUFFER_SIZE];
 			int count = 0;
 
+			ofstream output_file;
+			output_file.open(filename, ios::binary | ios::out);
 
-			//if (str_ends_with(szbuffer, "GET"))
-			//{
-			//	int len = strlen(szbuffer) - 4;
-			//	string s(szbuffer, szbuffer + len);
+			if (output_file.is_open()){
 
-			//	char *a = new char[s.size() + 1];
-			//	a[s.size()] = 0;
-			//	memcpy(a, s.c_str(), s.size());
+				// Read data from the server until we have received the file
+				while (count < filesize){
+					if ((ibytesrecv = recv(s, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
+						throw "Receive failed\n";
 
-			//	sprintf(szbuffer, a);
-			//	sendMessage(OK);
-			//}
+					output_file.write(szbuffer, sizeof(szbuffer));
 
-			// Read data from the server until we have received the file
-			while (count < filesize){
-				if ((ibytesrecv = recv(s, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
-					throw "Receive failed\n";
+					count += sizeof(szbuffer);
 
-				sprintf(outdata, "%s", szbuffer);
-				output_file.write(outdata, sizeof(outdata));
+					cout << "Received " << count << " bytes" << endl;
+					// Sanitize buffer
+					memset(szbuffer, 0, BUFFER_SIZE);
+				}
 
-				count += sizeof(outdata);
-
-				cout << "Received " << count << " bytes" << endl;
-				// Sanitize buffer
-				memset(szbuffer, 0, BUFFER_SIZE);
-				memset(outdata, 0, BUFFER_SIZE);
+				// Close our output file
+				output_file.close();
 			}
-
-			// Close our output file
-			output_file.close();
-
 			// Clear the buffer and send an ack to the server to confirm receipt
 			memset(szbuffer, 0, BUFFER_SIZE);
 		}

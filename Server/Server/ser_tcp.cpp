@@ -216,7 +216,7 @@ void getFile()
 
 			sendMessage(szbuffer);
 			ofstream output_file;
-			output_file.open("Files/test.txt", ios::binary);
+			output_file.open("Files//test.txt", ios::binary);
 
 			// Wait for confirmation 
 			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
