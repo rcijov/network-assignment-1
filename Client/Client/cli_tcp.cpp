@@ -69,6 +69,7 @@ char ch[128];
 #define OK "OK"
 #define ERR "ERR"
 #define DEL "DEL"
+#define SEND "SEND"
 
 //reference for used structures
 
@@ -267,7 +268,7 @@ void getFile()
 
 			// Send ack to start data transfer
 			memset(szbuffer, 0, BUFFER_SIZE);
-			sprintf(szbuffer, "SEND");
+			sprintf(szbuffer, SEND);
 			ibufferlen = strlen(szbuffer);
 
 			sendMessage(szbuffer);
@@ -297,7 +298,6 @@ void getFile()
 				// Close our output file
 				output_file.close();
 			}
-			// Clear the buffer and send an ack to the server to confirm receipt
 			memset(szbuffer, 0, BUFFER_SIZE);
 		}
 		else{
@@ -308,6 +308,7 @@ void getFile()
 	catch (const char* str){
 		cerr << str << WSAGetLastError() << endl;
 	}
+
 }
 
 void setHandShake()

@@ -93,6 +93,7 @@ char ch[128];
 #define ERR "ERR"
 #define FILE "FILE"
 #define DEL "DEL"
+#define SEND "SEND"
 
 //reference for used structures
 
@@ -187,7 +188,7 @@ void getFile()
 	//host data types
 	HOSTENT *hp;
 	HOSTENT *rp;
-
+			
 	cout << "Sending file " << filename << endl;
 
 	ifstream filedata;
@@ -215,8 +216,6 @@ void getFile()
 			ibufferlen = strlen(szbuffer);
 
 			sendMessage(szbuffer);
-			ofstream output_file;
-			output_file.open("Files//test.txt", ios::binary);
 
 			// Wait for confirmation 
 			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
@@ -230,7 +229,6 @@ void getFile()
 				ibufferlen = sizeof(szbuffer);
 				count += ibufferlen;
 				cout << "Sent " << count << " bytes" << endl;
-				output_file.write(szbuffer, sizeof(szbuffer));
 				if ((ibytessent = send(s1, szbuffer, (BUFFER_SIZE), 0)) == SOCKET_ERROR)
 					throw "error in send in server program\n";
 
@@ -238,7 +236,6 @@ void getFile()
 			}
 
 			filedata.close();
-			output_file.close();
 		}
 		else{
 
@@ -257,6 +254,7 @@ void getFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+	choice = 0;
 }
 
 void createFile(char file[], char msg[])
@@ -393,6 +391,9 @@ void menuSelect()
 		break;
 	case 9:
 		deleteFile();
+		break;
+	default:
+		printMenu();
 		break;
 	}
 }
