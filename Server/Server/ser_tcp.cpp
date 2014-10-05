@@ -73,7 +73,6 @@ int choice;
 #include <fstream>
 
 //filename
-char filename[30];
 char ch[128];
 
 #ifdef USES_REAL_FILE_TYPE
@@ -275,68 +274,71 @@ void putFile()
 	// receive the file that server request
 	receiveMessage();
 
-	char ch[30];
-	sprintf(ch, szbuffer);
+	char filename[30] = "Files/";
+	strcat(filename, szbuffer);
 
 	sendMessage(OK);
 
-	memset(szbuffer, 0, sizeof szbuffer);
+	char *buffer;
+	int ibufferlen = 0;
+	int ibytessent;
+	int ibytesrecv = 0;
 
-	// get size
-	receiveMessage();
+	//host data types
+	HOSTENT *hp;
+	HOSTENT *rp;
 
-	if (strcmp((char const*)szbuffer, ERR))
-	{
-		int filesize;
-		sscanf(szbuffer, "%d", &filesize);
+	int filesize = 0;
 
-		sendMessage(OK);
-
+	try {
+		//wait for reception of server response.
+		ibytesrecv = 0;
 		receiveMessage();
 
-		int buffSize = 0;
-		sscanf(szbuffer, "%d", &buffSize);
+		cout << "Server responded with " << szbuffer << endl;
 
-		sendMessage(OK);
+		sscanf(szbuffer, "%d", &filesize);
+		cout <<  "Filesize " << filesize << endl;
 
-		int nrPackages = (int)(ceil((double)filesize / (double)buffSize));
+		// Send ack to start data transfer
+		memset(szbuffer, 0, BUFFER_SIZE);
+		sprintf(szbuffer, SEND);
+		ibufferlen = strlen(szbuffer);
 
-		char* msg = (char*)calloc(filesize, sizeof(char));
+		sendMessage(szbuffer);
 
-		for (int z = 0; z < (nrPackages); z++)
-		{
-			// receive the message
-			receiveMessage();
-			strcat(msg, szbuffer);
+		// Intermediary buffer for formatting incoming data
+		int count = 0;
+
+		ofstream output_file;
+		output_file.open(filename, ios::binary | ios::out);
+		memset(szbuffer, 0, BUFFER_SIZE);
+
+		if (output_file.is_open()){
+
+			// Read data from the server until we have received the file
+			while (count < filesize){
+				if ((ibytesrecv = recv(s1, szbuffer, BUFFER_SIZE, 0)) == SOCKET_ERROR)
+					throw "Receive failed\n";
+
+				output_file.write(szbuffer, sizeof(szbuffer));
+
+				count += sizeof(szbuffer);
+
+				cout << "Received " << count << " bytes" << endl;
+				// Sanitize buffer
+				memset(szbuffer, 0, BUFFER_SIZE);
+			}
+
+			// Close our output file
+			output_file.close();
 		}
-
-		char path[40] = "Files/";
-		strcat(path, ch);
-
-		// create file if it does not exist
-		while (fileExist(path))
-		{
-			memset(ch, 0, sizeof ch);
-			memset(path, 0, sizeof path);
-			sendMessage("EXIST");
-			receiveMessage();
-			sprintf(ch, szbuffer);
-			sprintf(path, "Files/");
-			strcat(path, szbuffer);
-		}
-
-		sendMessage("GOOD");
-		// create file
-		createFile(ch, msg);
-
-		sendMessage(DONE);
-		sendMessage(OK);
+		memset(szbuffer, 0, BUFFER_SIZE);
 	}
-	else{
-		sendMessage(ERR);
-		sendMessage(OK);
+	catch (const char* str){
+		cerr << str << WSAGetLastError() << endl;
 	}
-	
+
 }
 
 // Delete File

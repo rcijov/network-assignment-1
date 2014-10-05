@@ -223,20 +223,16 @@ void remove(char *pString, char letter)
 
 void getFile()
 {
-	// send request for the file
-	sendMessage(FILE);
-
-	// receive the file that server request
+	sendMessage("PUT");
 	receiveMessage();
-	std::cout << szbuffer;
-
+	cout << "[PUT] Filename.ext: ";
 	// input the text file
 	memset(ch, 0, sizeof ch);
 	cin >> ch;
 	sendMessage(ch);
 
 	char filename[40] = "Files/";
-	strcat(filename, szbuffer);
+	strcat(filename, ch);
 
 	char *buffer;
 	int ibufferlen = 0;
@@ -309,6 +305,7 @@ void getFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 
+
 }
 
 void setHandShake()
@@ -324,73 +321,72 @@ void setHandShake()
 
 void putFile()
 {
-	std::cout << "[PUT] Filename.ext: ";
+	cout << "[PUT] Filename.ext: ";
 	cin >> ch;
+	sendMessage(ch);
+	receiveMessage();
 
-	sprintf(filename, ch);
-	char filepath[30] = "Files/";
-	strcat(filepath, filename);
+	char filename[30] = "Files/";
+	strcat(filename, ch);
+
+	char *buffer;
+	int ibufferlen = 0;
+	int ibytessent;
+	int ibytesrecv = 0;
+	//host data types
+	HOSTENT *hp;
+	HOSTENT *rp;
+
+	cout << "Sending file " << filename << endl;
 
 	ifstream filedata;
 	filebuf *pbuf;
-	int filesize;
 
-	// send the file name
-	sendMessage(ch);
+	ifstream file(filename, ios::binary);
+	file.seekg(0, ios::end);
+	unsigned int filesize = file.tellg();
+	file.close();
+
+	std::string nr = std::to_string(filesize);
+	char const *pchar = nr.c_str();
+
+	sendMessage((char *)pchar);
 	receiveMessage();
 
 	try {
 
 		// Open the file
-		filedata.open(filepath);
+		filedata.open(filename, ios::binary);
 
 		if (filedata.is_open()){
 
 			// Get pointer to file buffer and determine file size
-			pbuf = filedata.rdbuf();
-			filesize = pbuf->pubseekoff(0, ios::end, ios::in);
-			pbuf->pubseekpos(0, ios::in);
-
-			std::string s = std::to_string(filesize);
-			char const *psize = s.c_str();
-
-			// send the size of the file
-			sendMessage((char *)psize);
-			receiveMessage();
-
-			std::string sa = std::to_string(BUFFER_SIZE);
-			char const *pasize = sa.c_str();
-
-			// send the buffer size
-			sendMessage((char *)pasize);
-			receiveMessage();
-
+			
 			int count = 0;
-
 			// Loop through the file and stream in chunks based on the buffer size
 			while (!filedata.eof()){
-				memset(szbuffer, 0, sizeof szbuffer);
-				filedata.read(szbuffer, BUFFER_SIZE - 1);
-				ibufferlen = strlen(szbuffer);
+				filedata.read(reinterpret_cast<char*>(szbuffer), BUFFER_SIZE);
+				//reinterpret_cast<char*>(szbuffer)
+				ibufferlen = sizeof(szbuffer);
 				count += ibufferlen;
-				sendMessage(szbuffer);
+				cout << "Sent " << count << " bytes" << endl;
+				if ((ibytessent = send(s, szbuffer, (BUFFER_SIZE), 0)) == SOCKET_ERROR)
+					throw "error in send in server program\n";
+				memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 			}
-			filedata.close();
 
-			// check if exists
-			receiveMessage();
-			while (strcmp((char const*)szbuffer, "GOOD"))
-			{
-				memset(szbuffer, 0, sizeof szbuffer);
-				std::cout << "File Name Exists, New Name File: ";
-				cin >> ch;
-				sendMessage(ch);
-				receiveMessage();
-			}
+			filedata.close();
 		}
 		else{
-			std::cout << "File does not exist, sending decline" << endl;
-			sendMessage(ERR);
+
+			cout << "File does not exist, sending decline" << endl;
+			// Send back a NO to the client to indicate that the file does not exist
+			memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
+			sprintf(szbuffer, "NO -1");
+			ibufferlen = strlen(szbuffer);
+
+			if ((ibytessent = send(s, szbuffer, ibufferlen, 0)) == SOCKET_ERROR)
+				throw "error in send in server program\n";
 		}
 		// Print out any errors
 	}
@@ -398,14 +394,6 @@ void putFile()
 		cerr << str << WSAGetLastError() << endl;
 	}
 	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-	sendMessage(OK);
-
-	receiveMessage();
-	if (!strcmp((char const*)szbuffer, DONE))
-	{
-		std::cout << "File has been uploaded successfully." << endl;
-	}
-	memset(szbuffer, 0, sizeof szbuffer);
 }
 
 void delFile()
