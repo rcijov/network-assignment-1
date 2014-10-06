@@ -177,7 +177,9 @@ void getFile()
 	sendMessage("[GET] Filename.ext: ");
 	receiveMessage();
 
-	char filename[30] = "Files/";
+	char* str = "Files/";
+	char filename[50];
+	strcpy(filename, str);
 	strcat(filename, szbuffer);
 
 	char *buffer;
@@ -252,8 +254,6 @@ void getFile()
 	catch (const char* str){
 		cerr << str << WSAGetLastError() << endl;
 	}
-	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
-	choice = 0;
 }
 
 void createFile(char file[], char msg[])
@@ -274,7 +274,9 @@ void putFile()
 	// receive the file that server request
 	receiveMessage();
 
-	char filename[30] = "Files/";
+	char* str = "Files//";
+	char filename[50];
+	strcpy(filename, str);
 	strcat(filename, szbuffer);
 
 	sendMessage(OK);
@@ -375,27 +377,40 @@ void menuSelect()
 	{
 	case 1:
 		getFile();
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		break;
 	case 2:
 		putFile();
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		break;
 	case 3:
 		sendMessage(LIST);
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		getList();
 		break;
 	case 4:
 		sendMessage(DISC);
 		cout << "Exiting Client" << endl;
 		choice = 4;
+		memset(szbuffer, 0, BUFFER_SIZE);
 		break;
 	case 5:
 		printMenu();
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		break;
 	case 9:
 		deleteFile();
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		break;
 	default:
 		printMenu();
+		memset(szbuffer, 0, BUFFER_SIZE);
+		choice = 0;
 		break;
 	}
 }
@@ -482,7 +497,7 @@ int main(void){
 			//Send the menu to the client
 			sendMessage(CON);
 			printMenu();
-			sendMessage(OK);
+			//sendMessage(OK);
 			
 			//Receive response
 			receiveMessage();
@@ -498,7 +513,10 @@ int main(void){
 				//Select From Menu
 				if (strcmp(szbuffer, OK))
 				{
-					menuSelect();
+					if (strcmp(szbuffer, SEND))
+					{
+						menuSelect();
+					}
 				}
 			}
 

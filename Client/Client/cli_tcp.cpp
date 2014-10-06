@@ -223,15 +223,17 @@ void remove(char *pString, char letter)
 
 void getFile()
 {
-	sendMessage("PUT");
+	sendMessage("GET");
 	receiveMessage();
-	cout << "[PUT] Filename.ext: ";
+	cout << "[GET] Filename.ext: ";
 	// input the text file
 	memset(ch, 0, sizeof ch);
 	cin >> ch;
 	sendMessage(ch);
 
-	char filename[40] = "Files/";
+	char* str = "Files//";
+	char filename[50];
+	strcpy(filename, str);
 	strcat(filename, ch);
 
 	char *buffer;
@@ -304,8 +306,6 @@ void getFile()
 	catch (const char* str){
 		cerr << str << WSAGetLastError() << endl;
 	}
-
-
 }
 
 void setHandShake()
@@ -326,7 +326,9 @@ void putFile()
 	sendMessage(ch);
 	receiveMessage();
 
-	char filename[30] = "Files/";
+	char* str = "Files//";
+	char filename[50];
+	strcpy(filename, str);
 	strcat(filename, ch);
 
 	char *buffer;
@@ -393,7 +395,6 @@ void putFile()
 	catch (const char* str){
 		cerr << str << WSAGetLastError() << endl;
 	}
-	memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 }
 
 void delFile()
@@ -439,24 +440,30 @@ void menuSelect()
 	}
 	else if (!strcmp((char const*)szbuffer, PUT)){
 		putFile();
+		memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 	}
 	else if (!strcmp((char const*)szbuffer, DEL)){
 		delFile();
+		memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 	}
 	else if (!strcmp((char const*)szbuffer, GET)){
 		getFile();
+		memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 	}
 	else if (!strcmp((char const*)szbuffer, CON)){
 		if ((ibytesrecv = recv(s, szbuffer, 128, 0)) == SOCKET_ERROR)
 			throw "Receive failed\n";
 		else
 			std::cout << szbuffer;
+
+		getCommand();
 	}
 	else if (!strcmp((char const*)szbuffer, LIST)){
 		//sendMessage(LIST);
 		memset(szbuffer, 0, sizeof szbuffer);
 		receiveMessage();
 		std::cout << szbuffer;
+		memset(szbuffer, 0, BUFFER_SIZE); // zero the buffer
 	}
 	else{
 		getCommand();
@@ -505,12 +512,6 @@ int main(void){
 
 			while (strcmp((char const*)ch, DISC))
 			{
-				/* Have an open connection, so, server is
-				- waiting for the client request message
-				- don't forget to append <carriage return>
-				- <line feed> characters after the send buffer to indicate end-of file */
-
-				//wait for reception of server response.
 				ibytesrecv = 0;
 				memset(szbuffer, 0, sizeof szbuffer);
 
